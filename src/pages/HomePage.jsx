@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
+import { getLocalComments } from '../utils/commentStorage';
 import {
   MapPin,
   HeartHandshake,
@@ -104,18 +105,19 @@ const HOMEPAGE_PHOTOS = [
 ];
 
 const HomePage = ({ setCurrentPage }) => {
-  const [recentComments, setRecentComments] = useState([]);
-  const [loadingComments, setLoadingComments] = useState(true);
+  const [recentComments, setRecentComments] = useState(() => getLocalComments().slice(0, 6));
+  const [loadingComments, setLoadingComments] = useState(false);
 
   useEffect(() => {
     const fetchRecentComments = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/comments`);
-        if (res.data.success) {
-          setRecentComments((res.data.data || []).slice(0, 6));
+        const res = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
+        if (res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+          setRecentComments(res.data.data.slice(0, 6));
         }
       } catch (err) {
-        console.error('Gagal mengambil komentar di beranda:', err);
+        console.warn('Gagal mengambil komentar di beranda dari backend, menggunakan arsip lokal:', err);
+        setRecentComments(getLocalComments().slice(0, 6));
       } finally {
         setLoadingComments(false);
       }

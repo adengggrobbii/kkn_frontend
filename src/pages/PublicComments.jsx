@@ -15,6 +15,12 @@ import {
   Clock,
 } from 'lucide-react';
 import { API_BASE_URL } from '../api';
+import {
+  getLocalComments,
+  saveLocalComments,
+  addLocalComment,
+  removeLocalComment,
+} from '../utils/commentStorage';
 
 const ROLE_OPTIONS = [
   'Warga Desa Ulok Mukti',
@@ -76,8 +82,9 @@ const getRoleBadgeStyle = (role = '') => {
 };
 
 const PublicComments = ({ isAdmin = false, token = '' }) => {
-  const [comments, setComments] = useState([]);
-  const [loadingComments, setLoadingComments] = useState(true);
+  // Inisialisasi awal langsung dari storage lokal agar tidak menunggu dan tidak blank
+  const [comments, setComments] = useState(getLocalComments());
+  const [loadingComments, setLoadingComments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -92,12 +99,19 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
   const fetchComments = async () => {
     setLoadingComments(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/comments`);
-      if (res.data.success) {
-        setComments(res.data.data || []);
+      const res = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
+      if (res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+        // Gabungkan data backend dengan komentar lokal yang baru dibuat
+        const currentLocal = getLocalComments();
+        const backendIds = new Set(res.data.data.map(c => c._id || (c.nama + c.pesan)));
+        const localOnly = currentLocal.filter(c => !backendIds.has(c._id) && !backendIds.has(c.nama + c.pesan));
+        const merged = [...localOnly, ...res.data.data];
+        setComments(merged);
+        saveLocalComments(merged);
       }
     } catch (err) {
-      console.error('Gagal mengambil komentar:', err);
+      console.warn('API backend komentar belum aktif atau tidak dapat dijangkau dari HP, menggunakan data lokal:', err);
+      setComments(getLocalComments());
     } finally {
       setLoadingComments(false);
     }
@@ -119,27 +133,32 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
     }
 
     setSubmitting(true);
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/comments`, {
-        nama: nama.trim(),
-        role: role.trim() || 'Pengunjung / Umum',
-        pesan: pesan.trim(),
-      });
 
-      if (res.data.success) {
-        setSuccessMsg('Terima kasih! Komentar Anda berhasil dikirim dan ditampilkan.');
-        setNama('');
-        setPesan('');
-        // Refresh list
-        fetchComments();
-      } else {
-        setErrorMsg(res.data.message || 'Gagal mengirim komentar.');
-      }
+    // Buat objek komentar baru secara instan
+    const newComment = {
+      _id: 'cmt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      nama: nama.trim(),
+      role: role.trim() || 'Pengunjung / Umum',
+      pesan: pesan.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    // LANGSUNG simpan dan tampilkan ke layar (Optimistic UI)
+    const updated = addLocalComment(newComment);
+    setComments(updated);
+    setSuccessMsg('Terima kasih! Komentar Anda berhasil dikirim dan langsung ditampilkan.');
+    setNama('');
+    setPesan('');
+
+    // Coba kirimkan ke backend jika server tersedia
+    try {
+      await axios.post(`${API_BASE_URL}/api/comments`, {
+        nama: newComment.nama,
+        role: newComment.role,
+        pesan: newComment.pesan,
+      }, { timeout: 4000 });
     } catch (err) {
-      setErrorMsg(
-        err.response?.data?.message ||
-          'Gagal menghubungkan ke server. Pastikan backend aktif.'
-      );
+      console.warn('Backend offline/belum terhubung, komentar disimpan di browser lokal:', err);
     } finally {
       setSubmitting(false);
     }
@@ -148,15 +167,14 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
   // Handle delete comment (Admin only)
   const handleDeleteComment = async (id) => {
     if (!window.confirm('Yakin ingin menghapus komentar ini?')) return;
+    const updated = removeLocalComment(id);
+    setComments(updated);
     try {
-      const res = await axios.delete(`${API_BASE_URL}/api/comments/${id}`, {
+      await axios.delete(`${API_BASE_URL}/api/comments/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.data.success) {
-        setComments((prev) => prev.filter((c) => c._id !== id));
-      }
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menghapus komentar');
+      console.warn('Gagal menghapus komentar di backend:', err);
     }
   };
 

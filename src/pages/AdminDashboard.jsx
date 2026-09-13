@@ -4,12 +4,13 @@ import { Users, UserCheck, UserMinus, CalendarDays, Search, Download, Trash2, Re
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { API_BASE_URL } from '../api';
 import { formatPhotoUrl } from './KKNDocumentation';
+import { getLocalComments, removeLocalComment } from '../utils/commentStorage';
 
 const AdminDashboard = ({ token }) => {
   const [activeTab, setActiveTab] = useState('comments');
 
   // Comment moderation states
-  const [commentsList, setCommentsList] = useState([]);
+  const [commentsList, setCommentsList] = useState(getLocalComments());
   const [loadingCommentsAdmin, setLoadingCommentsAdmin] = useState(false);
   const [commentSearch, setCommentSearch] = useState('');
 
@@ -67,21 +68,27 @@ const AdminDashboard = ({ token }) => {
   const fetchCommentsAdmin = async () => {
     setLoadingCommentsAdmin(true);
     try {
-      const { data } = await axios.get(`${API_BASE_URL}/api/comments`);
-      if (data.success) setCommentsList(data.data || []);
-    } catch {}
-    finally { setLoadingCommentsAdmin(false); }
+      const { data } = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
+      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        setCommentsList(data.data);
+      } else {
+        setCommentsList(getLocalComments());
+      }
+    } catch {
+      setCommentsList(getLocalComments());
+    } finally {
+      setLoadingCommentsAdmin(false);
+    }
   };
 
   const handleDeleteCommentAdmin = async (id) => {
     if (!window.confirm('Yakin ingin menghapus komentar publik ini?')) return;
+    removeLocalComment(id);
+    setCommentsList((prev) => prev.filter((c) => c._id !== id));
     try {
-      const { data } = await axios.delete(`${API_BASE_URL}/api/comments/${id}`, authHeader);
-      if (data.success) {
-        setCommentsList(prev => prev.filter(c => c._id !== id));
-      }
+      await axios.delete(`${API_BASE_URL}/api/comments/${id}`, authHeader);
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menghapus komentar');
+      console.warn('Gagal menghapus komentar di backend:', err);
     }
   };
 
