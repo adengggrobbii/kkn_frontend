@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GraduationCap, Lock, LogOut, LayoutDashboard, ClipboardCheck, Camera, Users, Home, Menu, X } from 'lucide-react';
+import { GraduationCap, Lock, LogOut, LayoutDashboard, MessageSquare, Camera, Users, Home, Menu, X, Film } from 'lucide-react';
 
 const Navbar = ({ currentPage, setCurrentPage, isAdmin, adminUser, onLogout }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -82,14 +82,14 @@ const Navbar = ({ currentPage, setCurrentPage, isAdmin, adminUser, onLogout }) =
               </button>
 
               <button
-                onClick={() => handleNavClick('student')}
-                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${currentPage === 'student'
+                onClick={() => handleNavClick('comments')}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${currentPage === 'comments' || currentPage === 'student'
                   ? 'bg-purple-600 text-white shadow-md shadow-purple-300/40'
                   : 'text-purple-700 hover:bg-purple-50 border border-purple-200'
                   }`}
               >
-                <ClipboardCheck className="w-4 h-4" />
-                <span>Presensi</span>
+                <MessageSquare className="w-4 h-4" />
+                <span>Komentar</span>
               </button>
 
               <button
@@ -112,6 +112,17 @@ const Navbar = ({ currentPage, setCurrentPage, isAdmin, adminUser, onLogout }) =
               >
                 <Camera className="w-4 h-4" />
                 <span>Dokumentasi</span>
+              </button>
+
+              <button
+                onClick={() => handleNavClick('aftermovie')}
+                className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${currentPage === 'aftermovie'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-300/40'
+                  : 'text-purple-700 hover:bg-purple-50 border border-purple-200'
+                  }`}
+              >
+                <Film className="w-4 h-4" />
+                <span>After Movie</span>
               </button>
 
               <button
@@ -178,14 +189,14 @@ const Navbar = ({ currentPage, setCurrentPage, isAdmin, adminUser, onLogout }) =
               </button>
 
               <button
-                onClick={() => handleNavClick('student')}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${currentPage === 'student'
+                onClick={() => handleNavClick('comments')}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${currentPage === 'comments' || currentPage === 'student'
                   ? 'bg-purple-600 text-white shadow-md'
                   : 'text-purple-800 hover:bg-purple-50'
                   }`}
               >
-                <ClipboardCheck className="w-4 h-4" />
-                <span>Presensi Harian</span>
+                <MessageSquare className="w-4 h-4" />
+                <span>Kolom Komentar</span>
               </button>
 
               <button
@@ -208,6 +219,17 @@ const Navbar = ({ currentPage, setCurrentPage, isAdmin, adminUser, onLogout }) =
               >
                 <Camera className="w-4 h-4" />
                 <span>Dokumentasi Kegiatan</span>
+              </button>
+
+              <button
+                onClick={() => handleNavClick('aftermovie')}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${currentPage === 'aftermovie'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-purple-800 hover:bg-purple-50'
+                  }`}
+              >
+                <Film className="w-4 h-4" />
+                <span>After Movie KKN</span>
               </button>
 
               <button

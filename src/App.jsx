@@ -3,9 +3,10 @@ import LandingPage from './pages/LandingPage';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
-import StudentAttendance from './pages/StudentAttendance';
+import PublicComments from './pages/PublicComments';
 import Members from './pages/Members';
 import KKNDocumentation from './pages/KKNDocumentation';
+import AfterMovie from './pages/AfterMovie';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -68,9 +69,12 @@ const App = () => {
           />
           <main>
             {currentPage === 'home'          && <HomePage setCurrentPage={setCurrentPage} />}
-            {currentPage === 'student'       && <StudentAttendance />}
+            {(currentPage === 'comments' || currentPage === 'student') && (
+              <PublicComments isAdmin={isAdmin} token={token} />
+            )}
             {currentPage === 'members'       && <Members />}
             {currentPage === 'documentation' && <KKNDocumentation />}
+            {currentPage === 'aftermovie'    && <AfterMovie setCurrentPage={setCurrentPage} />}
             {currentPage === 'login'         && (isAdmin ? <AdminDashboard token={token} /> : <AdminLogin onLoginSuccess={handleLoginSuccess} />)}
             {currentPage === 'admin'         && (isAdmin ? <AdminDashboard token={token} /> : <AdminLogin onLoginSuccess={handleLoginSuccess} />)}
           </main>

@@ -11,7 +11,7 @@ const Footer = () => {
             <span className="font-extrabold text-purple-800">KKN Desa Ulok Mukti 2026</span>
           </div>
           <p className="text-xs text-purple-400 mt-0.5">
-            Portal Informasi & Presensi Harian Mahasiswa KKN Universitas Aisyah Pringsewu
+            Portal Informasi, Dokumentasi & Kolom Komentar KKN Universitas Aisyah Pringsewu
           </p>
         </div>
         <div className="text-xs text-purple-400 font-medium">

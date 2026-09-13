@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Users, UserCheck, UserMinus, CalendarDays, Search, Download, Trash2, RefreshCw, Eye, AlertCircle, Image as ImageIcon, Plus, CheckCircle2 } from 'lucide-react';
+import { Users, UserCheck, UserMinus, CalendarDays, Search, Download, Trash2, RefreshCw, Eye, AlertCircle, Image as ImageIcon, Plus, CheckCircle2, MessageSquare } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { API_BASE_URL } from '../api';
 
 const AdminDashboard = ({ token }) => {
-  const [activeTab, setActiveTab] = useState('attendance');
+  const [activeTab, setActiveTab] = useState('comments');
+
+  // Comment moderation states
+  const [commentsList, setCommentsList] = useState([]);
+  const [loadingCommentsAdmin, setLoadingCommentsAdmin] = useState(false);
+  const [commentSearch, setCommentSearch] = useState('');
 
   // Attendance states
   const [logs, setLogs] = useState([]);
@@ -57,7 +62,33 @@ const AdminDashboard = ({ token }) => {
     finally { setLoadingDocs(false); }
   };
 
-  useEffect(() => { if (activeTab === 'attendance') fetchLogs(); else fetchDocs(); }, [activeTab, filters]);
+  // ── Fetch comments ──────────────────────────────────────
+  const fetchCommentsAdmin = async () => {
+    setLoadingCommentsAdmin(true);
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/api/comments`);
+      if (data.success) setCommentsList(data.data || []);
+    } catch {}
+    finally { setLoadingCommentsAdmin(false); }
+  };
+
+  const handleDeleteCommentAdmin = async (id) => {
+    if (!window.confirm('Yakin ingin menghapus komentar publik ini?')) return;
+    try {
+      const { data } = await axios.delete(`${API_BASE_URL}/api/comments/${id}`, authHeader);
+      if (data.success) {
+        setCommentsList(prev => prev.filter(c => c._id !== id));
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal menghapus komentar');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'comments') fetchCommentsAdmin();
+    else if (activeTab === 'attendance') fetchLogs();
+    else fetchDocs();
+  }, [activeTab, filters]);
 
   const handleDeleteLog = async (id) => {
     if (!window.confirm('Hapus data absensi ini?')) return;
@@ -122,8 +153,9 @@ const AdminDashboard = ({ token }) => {
 
       {/* Tabs */}
       <div className="flex border-b-2 border-purple-100 mb-8 gap-1">
-        {[{ id: 'attendance', label: 'Presensi Mahasiswa', icon: <UserCheck className="w-4 h-4" /> },
-          { id: 'documentation', label: 'Dokumentasi Kegiatan', icon: <ImageIcon className="w-4 h-4" /> }
+        {[{ id: 'comments', label: 'Moderasi Komentar', icon: <MessageSquare className="w-4 h-4" /> },
+          { id: 'documentation', label: 'Dokumentasi Kegiatan', icon: <ImageIcon className="w-4 h-4" /> },
+          { id: 'attendance', label: 'Arsip Presensi', icon: <UserCheck className="w-4 h-4" /> }
         ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 -mb-0.5 transition-all duration-200 ${
@@ -371,6 +403,97 @@ const AdminDashboard = ({ token }) => {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── TAB: COMMENTS MODERATION ───────────────────── */}
+      {activeTab === 'comments' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-purple-100 shadow-sm">
+            <div>
+              <h2 className="text-base sm:text-lg font-extrabold text-purple-900">
+                Moderasi Komentar & Buku Tamu Publik
+              </h2>
+              <p className="text-xs text-purple-400 mt-0.5">
+                Total {commentsList.length} pesan masuk dari pengunjung & warga. Anda dapat menghapus pesan yang tidak pantas.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
+                <input
+                  type="text"
+                  placeholder="Cari komentar..."
+                  value={commentSearch}
+                  onChange={e => setCommentSearch(e.target.value)}
+                  className="pl-8 pr-3 py-2 text-xs border border-purple-200 rounded-xl bg-purple-50/50 focus:outline-none focus:border-purple-500 w-44 sm:w-60"
+                />
+              </div>
+              <button
+                onClick={fetchCommentsAdmin}
+                disabled={loadingCommentsAdmin}
+                className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl border border-purple-200 transition-colors"
+                title="Segarkan data"
+              >
+                <RefreshCw className={`w-4 h-4 ${loadingCommentsAdmin ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          </div>
+
+          {loadingCommentsAdmin && commentsList.length === 0 ? (
+            <div className="py-16 text-center text-purple-400 text-xs">Memuat komentar...</div>
+          ) : commentsList.length === 0 ? (
+            <div className="py-16 text-center text-purple-300 text-xs bg-white rounded-2xl border border-purple-100">
+              Belum ada komentar dari publik.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {commentsList
+                .filter(c =>
+                  !commentSearch ||
+                  c.nama.toLowerCase().includes(commentSearch.toLowerCase()) ||
+                  c.pesan.toLowerCase().includes(commentSearch.toLowerCase())
+                )
+                .map(item => (
+                  <div
+                    key={item._id}
+                    className="bg-white p-5 rounded-2xl border border-purple-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-3 relative"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2 pr-8">
+                        <div>
+                          <h4 className="font-extrabold text-purple-950 text-sm">{item.nama}</h4>
+                          <span className="inline-block mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+                            {item.role || 'Umum'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-purple-400 whitespace-nowrap">
+                          {new Date(item.createdAt).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-xs text-purple-900/90 mt-3 whitespace-pre-wrap leading-relaxed bg-purple-50/40 p-3 rounded-xl border border-purple-50">
+                        {item.pesan}
+                      </p>
+                    </div>
+                    <div className="flex justify-end pt-2 border-t border-purple-50">
+                      <button
+                        onClick={() => handleDeleteCommentAdmin(item._id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-xl text-xs font-semibold transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Hapus Komentar</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
       )}
 

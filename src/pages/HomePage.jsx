@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { API_BASE_URL } from '../api';
 import {
   MapPin,
   HeartHandshake,
@@ -7,47 +9,140 @@ import {
   Calendar,
   CheckCircle2,
   Building2,
-  Camera
+  Camera,
+  MessageSquare,
+  Sparkles,
+  Quote,
+  Film,
 } from 'lucide-react';
+import MemberHeroCarousel from '../components/MemberHeroCarousel';
+
+// Helper format tanggal singkat
+const formatTanggalSingkat = (dateStr) => {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
+// Helper warna avatar
+const getAvatarGradient = (name = '') => {
+  const gradients = [
+    'from-purple-500 to-indigo-600',
+    'from-violet-500 to-purple-700',
+    'from-fuchsia-500 to-pink-600',
+    'from-purple-600 to-violet-800',
+    'from-indigo-500 to-purple-600',
+    'from-pink-500 to-rose-600',
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % gradients.length;
+  return gradients[index];
+};
+
+const getRoleBadgeStyle = (role = '') => {
+  const r = role.toLowerCase();
+  if (r.includes('warga') || r.includes('desa')) {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  }
+  if (r.includes('mahasiswa') || r.includes('kkn')) {
+    return 'bg-purple-50 text-purple-700 border-purple-200';
+  }
+  if (r.includes('dosen') || r.includes('dpl')) {
+    return 'bg-blue-50 text-blue-700 border-blue-200';
+  }
+  if (r.includes('aparatur')) {
+    return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+  return 'bg-gray-50 text-gray-600 border-gray-200';
+};
 
 // ============================================================================
-// FOTO HIGHLIGHT KEGIATAN HOMEPAGE
-// Taruh file foto di folder: frontend/public/homepage/ (contoh: /homepage/kegiatan1.jpg)
-// Anda bisa mengganti URL/path foto di bawah ini secara manual.
+// 📸 PENGATURAN FOTO BACKGROUND HALAMAN UTAMA (HERO SECTION)
 // ============================================================================
+// Cara mengganti foto background ini dengan foto Anda sendiri:
+// 1. Masukkan file foto Anda ke folder: frontend/public/homepage/
+//    (Contoh: frontend/public/homepage/bg-utama.png atau bg-utama.jpg)
+// 2. Jika nama filenya berbeda, ubah nilai path di bawah ini.
+// ============================================================================
+export const BACKGROUND_HALAMAN_UTAMA = '/homepage/bg.jpg';
+
 const HOMEPAGE_PHOTOS = [
   {
     id: 1,
-    url: '/homepage/kkn.png',
-    judul: 'coming soon',
-    sub: 'coming soon',
+    url: '/homepage/k4.jpg',
+    judul: 'Sosialisasi dan Edukasi',
+    sub: 'Sosialisasi dan edukasi di SMPN 11 Ngambur',
   },
   {
     id: 2,
-    url: '/homepage/kkn.png',
-    judul: 'coming soon',
-    sub: 'coming soon',
+    url: '/homepage/k2.jpg',
+    judul: 'Proker Plang Edukasi Sampah',
+    sub: 'Pemasangan Plang Edukasi Sampah di Pekon Ulok Mukti',
   },
   {
     id: 3,
-    url: '/homepage/kkn.png',
-    judul: 'coming soon',
-    sub: 'coming soon',
+    url: '/homepage/k3.jpg',
+    judul: 'Sosialisasi di SD 44 Krui',
+    sub: 'Sosialisasi dan edukasi di SD 44 Krui',
+  },
+  {
+    id: 4,
+    url: '/homepage/k5.jpg',
+    judul: 'Kegiatan Bersama di TPA',
+    sub: 'TPA Hudatunnajiyah Pekon Ulok Mukti',
   },
 ];
 
 const HomePage = ({ setCurrentPage }) => {
+  const [recentComments, setRecentComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(true);
+
+  useEffect(() => {
+    const fetchRecentComments = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/comments`);
+        if (res.data.success) {
+          setRecentComments((res.data.data || []).slice(0, 6));
+        }
+      } catch (err) {
+        console.error('Gagal mengambil komentar di beranda:', err);
+      } finally {
+        setLoadingComments(false);
+      }
+    };
+    fetchRecentComments();
+  }, []);
   return (
     <div className="min-h-screen text-purple-950">
       {/* ── HERO SECTION ────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-purple-900 via-purple-800 to-purple-950 text-white py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
-        {/* Decorative Background Elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl -z-0"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl -z-0"></div>
+      <section className="relative overflow-hidden bg-purple-950 text-white py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+        {/* Foto Background Halaman Utama (Foto asli tanpa gradient / vignette) */}
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <img
+            src={BACKGROUND_HALAMAN_UTAMA}
+            alt="Foto Background Halaman Utama"
+            className="w-full h-full object-cover object-center"
+            onError={(e) => {
+              // Fallback otomatis jika file belum ditemukan
+              e.target.onerror = null;
+              e.target.src = '/homepage/kkn.png';
+            }}
+          />
+        </div>
 
-        <div className="max-w-7xl mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="max-w-7xl mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
           {/* Left Text Content */}
-          <div className="text-center lg:text-left space-y-6">
+          <div className="text-center lg:text-left space-y-6 bg-black/40 lg:bg-black/30 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/15 shadow-2xl max-w-xl mx-auto lg:mx-0">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs sm:text-sm font-semibold tracking-wide backdrop-blur-md">
               <GraduationCap className="w-4 h-4 text-purple-300" />
               <span>Universitas Aisyah Pringsewu 2026</span>
@@ -60,60 +155,41 @@ const HomePage = ({ setCurrentPage }) => {
               </span>
             </h1>
 
-            <p className="text-purple-200/90 text-sm sm:text-base leading-relaxed max-w-xl mx-auto lg:mx-0">
-              Wadah informasi kegiatan, presensi harian mahasiswa, dokumentasi linimasa pengabdian, dan profil Desa Ulok Mukti. Berdaya bersama, maju bersama!
+            <p className="text-purple-200/95 text-sm sm:text-base leading-relaxed max-w-xl mx-auto lg:mx-0 font-medium">
+              Wadah informasi kegiatan, dokumentasi linimasa pengabdian, profil Desa Ulok Mukti, serta kolom komentar publik. Berdaya bersama, maju bersama!
             </p>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-2">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-2">
               <button
-                onClick={() => setCurrentPage('student')}
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-400 hover:to-violet-400 text-white font-extrabold px-6 py-3.5 rounded-2xl shadow-lg shadow-purple-900/50 hover:shadow-purple-700/50 transition-all duration-300 text-xs sm:text-sm"
+                onClick={() => setCurrentPage('comments')}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-400 hover:to-violet-400 text-white font-extrabold px-5 py-3 rounded-2xl shadow-lg shadow-purple-900/50 hover:shadow-purple-700/50 transition-all duration-300 text-xs sm:text-sm active:scale-95"
               >
-                <span>Presensi Kehadiran</span>
-                <ArrowRight className="w-4 h-4" />
+                <MessageSquare className="w-4 h-4" />
+                <span>Kirim Pesan</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentPage('aftermovie')}
+                className="flex items-center gap-2 bg-purple-600/70 hover:bg-purple-600 text-white font-extrabold px-5 py-3 rounded-2xl border border-purple-400/40 backdrop-blur-md transition-all duration-300 text-xs sm:text-sm active:scale-95 shadow-lg shadow-purple-950/50"
+              >
+                <Film className="w-4 h-4 text-purple-200" />
+                <span>Nonton After Movie</span>
               </button>
 
               <button
                 onClick={() => setCurrentPage('documentation')}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-6 py-3.5 rounded-2xl border border-white/20 backdrop-blur-md transition-all duration-300 text-xs sm:text-sm"
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold px-5 py-3 rounded-2xl border border-white/20 backdrop-blur-md transition-all duration-300 text-xs sm:text-sm active:scale-95"
               >
                 <Camera className="w-4 h-4" />
-                <span>Lihat Dokumentasi</span>
+                <span>Dokumentasi</span>
               </button>
             </div>
           </div>
 
-          {/* Right Hero Image Card Slider / Grid */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 relative">
-            {HOMEPAGE_PHOTOS.slice(0, 2).map((photo, index) => (
-              <div
-                key={photo.id}
-                className={`relative rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-purple-900/60 aspect-[4/5] group ${index === 1 ? 'translate-y-6 sm:translate-y-8' : ''
-                  }`}
-              >
-                <img
-                  src={photo.url}
-                  alt={photo.judul}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                <div className="hidden absolute inset-0 bg-gradient-to-br from-purple-800 to-violet-950 items-center justify-center p-4 text-center">
-                  <div>
-                    <Camera className="w-10 h-10 text-purple-300 mx-auto mb-2 opacity-60" />
-                    <span className="text-xs text-purple-200 font-semibold">{photo.judul}</span>
-                  </div>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-purple-950/80 via-transparent to-transparent"></div>
-                <div className="absolute bottom-3 left-3 right-3 text-white">
-                  <p className="text-xs font-bold truncate">{photo.judul}</p>
-                  <p className="text-[10px] text-purple-300">{photo.sub}</p>
-                </div>
-              </div>
-            ))}
+          {/* Right Hero Image Card Carousel with All KKN Members */}
+          <div className="w-full flex justify-center lg:justify-end">
+            <MemberHeroCarousel setCurrentPage={setCurrentPage} />
           </div>
         </div>
       </section>
@@ -220,6 +296,44 @@ const HomePage = ({ setCurrentPage }) => {
         </div>
       </section>
 
+      {/* ── SPOTLIGHT BANNER AFTER MOVIE ────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-10">
+        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-purple-950 via-slate-950 to-purple-950 border border-purple-500/30 shadow-2xl p-6 sm:p-10 text-white">
+          <div className="absolute inset-0 z-0">
+            <img
+              src="/homepage/bg.jpg"
+              alt="After Movie Backdrop"
+              className="w-full h-full object-cover opacity-20 filter blur-[2px]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-950/95 via-purple-950/80 to-purple-950/95" />
+          </div>
+
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-2.5 text-center md:text-left max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-bold">
+                <Film className="w-3.5 h-3.5" />
+                <span>Sinema KKN Pekon Ulok Mukti 2026</span>
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black text-white">
+                Tonton Video After Movie Resmi
+              </h3>
+              <p className="text-xs sm:text-sm text-purple-200/90 leading-relaxed">
+                Abadikan setiap kenangan, tawa, dan cerita perjuangan pengabdian di Pekon Ulok Mukti dalam video sinematik beresolusi tinggi.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setCurrentPage('aftermovie')}
+              className="inline-flex items-center gap-2.5 bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-400 hover:to-violet-400 text-white font-extrabold px-7 py-3.5 rounded-2xl shadow-xl shadow-purple-900/60 hover:shadow-purple-700/60 transition-all duration-300 text-xs sm:text-sm active:scale-95 shrink-0"
+            >
+              <Film className="w-4 h-4" />
+              <span>Buka Menu After Movie</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* ── GALERI HIGHLIGHT FOTO KEGIATAN ──────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 bg-purple-50/50 rounded-3xl border border-purple-100 my-8">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
@@ -270,21 +384,110 @@ const HomePage = ({ setCurrentPage }) => {
         </div>
       </section>
 
-      {/* ── CALL TO ACTION PRESENSI ─────────────────────────────────── */}
+      {/* ── KOMENTAR & BUKU TAMU TERBARU DI BERANDA ────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-bold mb-2.5">
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <span>Aspirasi & Pesan Hangat</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-purple-950 tracking-tight">
+              Apa Kata Mereka Tentang KKN Ini?
+            </h2>
+            <p className="text-purple-500 text-xs sm:text-sm mt-1">
+              Pesan, doa, dan kesan yang disampaikan secara terbuka oleh masyarakat, mahasiswa, dan pengunjung
+            </p>
+          </div>
+          <button
+            onClick={() => setCurrentPage('comments')}
+            className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 px-5 py-2.5 rounded-xl shadow-md shadow-purple-300/40 hover:shadow-purple-400/50 transition-all shrink-0"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Lihat Semua & Tulis Komentar</span>
+          </button>
+        </div>
+
+        {loadingComments ? (
+          <div className="py-12 text-center text-purple-400 text-xs sm:text-sm">
+            Memuat komentar terbaru...
+          </div>
+        ) : recentComments.length === 0 ? (
+          <div className="bg-white rounded-3xl p-8 text-center border border-purple-100 shadow-sm max-w-md mx-auto">
+            <MessageSquare className="w-8 h-8 text-purple-300 mx-auto mb-2" />
+            <p className="text-xs sm:text-sm font-bold text-purple-900">Belum ada komentar yang ditampilkan.</p>
+            <button
+              onClick={() => setCurrentPage('comments')}
+              className="mt-3 text-xs font-bold text-purple-600 hover:underline"
+            >
+              Jadilah orang pertama yang menulis komentar!
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {recentComments.map((item) => {
+              const initial = item.nama ? item.nama.trim().charAt(0).toUpperCase() : '?';
+              const gradientClass = getAvatarGradient(item.nama);
+              const roleBadgeClass = getRoleBadgeStyle(item.role);
+
+              return (
+                <div
+                  key={item._id}
+                  className="bg-white rounded-3xl p-5 sm:p-6 border border-purple-100 shadow-md shadow-purple-100/40 hover:shadow-xl hover:shadow-purple-200/50 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group"
+                >
+                  <div>
+                    {/* Header: Avatar, Name, Role */}
+                    <div className="flex items-center gap-3 mb-3.5">
+                      <div
+                        className={`w-10 h-10 rounded-2xl bg-gradient-to-tr ${gradientClass} text-white font-extrabold flex items-center justify-center text-sm shadow-sm shrink-0`}
+                      >
+                        {initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-extrabold text-purple-950 text-sm truncate">
+                          {item.nama}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleBadgeClass}`}>
+                            {item.role || 'Pengunjung'}
+                          </span>
+                          <span className="text-[10px] text-purple-400">
+                            {formatTanggalSingkat(item.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Message Content */}
+                    <div className="relative bg-purple-50/40 rounded-2xl p-4 border border-purple-50">
+                      <Quote className="w-5 h-5 text-purple-300/40 absolute top-2 right-2 rotate-180" />
+                      <p className="text-xs sm:text-sm text-purple-900/90 leading-relaxed line-clamp-3 whitespace-pre-wrap break-words">
+                        {item.pesan}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ── CALL TO ACTION KOMENTAR & PESAN ──────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="bg-gradient-to-r from-purple-900 via-purple-800 to-violet-900 rounded-3xl p-8 sm:p-12 text-white text-center shadow-xl relative overflow-hidden">
           <div className="max-w-2xl mx-auto space-y-4 relative z-10">
             <h2 className="text-2xl sm:text-4xl font-extrabold">
-              Sudahkah Anda Presensi Hari Ini?
+              Punya Pesan atau Tanggapan untuk Kami?
             </h2>
             <p className="text-purple-200 text-xs sm:text-sm">
-              Pastikan seluruh mahasiswa KKN Desa Ulok Mukti mengisi form presensi harian sebelum batas waktu yang ditentukan.
+              Sampaikan ucapan semangat, masukan, aspirasi, atau kesan Anda untuk tim KKN Universitas Aisyah Pringsewu di Desa Ulok Mukti 2026.
             </p>
             <button
-              onClick={() => setCurrentPage('student')}
+              onClick={() => setCurrentPage('comments')}
               className="inline-flex items-center gap-2 bg-white text-purple-950 font-black px-8 py-3.5 rounded-2xl shadow-lg hover:bg-purple-50 transition-all text-xs sm:text-sm"
             >
-              <span>Isi Presensi Sekarang</span>
+              <span>Tulis Komentar Sekarang</span>
               <ArrowRight className="w-4 h-4 text-purple-700" />
             </button>
           </div>
