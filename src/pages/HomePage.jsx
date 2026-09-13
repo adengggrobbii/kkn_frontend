@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
-import { getLocalComments } from '../utils/commentStorage';
+import { getLocalComments, filterOutDeleted } from '../utils/commentStorage';
 import {
   MapPin,
   HeartHandshake,
@@ -112,19 +112,19 @@ const HomePage = ({ setCurrentPage }) => {
     const fetchRecentComments = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
-        if (res.data.success && Array.isArray(res.data.data)) {
+        if (res.data && res.data.success && Array.isArray(res.data.data)) {
           const backendData = res.data.data;
           // Gabungkan data backend dengan komentar lokal yang baru dibuat
           const backendIds = new Set(backendData.map((c) => c._id || (c.nama + c.pesan)));
           const localOnly = getLocalComments().filter((c) => !backendIds.has(c._id) && !backendIds.has(c.nama + c.pesan));
-          const combined = [...backendData, ...localOnly];
+          const combined = filterOutDeleted([...localOnly, ...backendData]);
           setRecentComments(combined.slice(0, 6));
         } else {
-          setRecentComments(getLocalComments().slice(0, 6));
+          setRecentComments(filterOutDeleted(getLocalComments()).slice(0, 6));
         }
       } catch (err) {
         console.warn('Gagal mengambil komentar di beranda dari backend, menggunakan arsip lokal:', err);
-        setRecentComments(getLocalComments().slice(0, 6));
+        setRecentComments(filterOutDeleted(getLocalComments()).slice(0, 6));
       } finally {
         setLoadingComments(false);
       }

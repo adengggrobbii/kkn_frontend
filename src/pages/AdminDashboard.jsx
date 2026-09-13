@@ -4,7 +4,7 @@ import { Users, UserCheck, UserMinus, CalendarDays, Search, Download, Trash2, Re
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { API_BASE_URL } from '../api';
 import { formatPhotoUrl } from './KKNDocumentation';
-import { getLocalComments, removeLocalComment } from '../utils/commentStorage';
+import { getLocalComments, saveLocalComments, removeLocalComment, filterOutDeleted } from '../utils/commentStorage';
 
 const AdminDashboard = ({ token }) => {
   const [activeTab, setActiveTab] = useState('comments');
@@ -68,14 +68,20 @@ const AdminDashboard = ({ token }) => {
   const fetchCommentsAdmin = async () => {
     setLoadingCommentsAdmin(true);
     try {
+      const local = getLocalComments();
       const { data } = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
-      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-        setCommentsList(data.data);
+      if (data && data.success && Array.isArray(data.data)) {
+        // Gabungkan data backend dengan komentar lokal yang baru dibuat
+        const backendIds = new Set(data.data.map((c) => c._id || (c.nama + c.pesan)));
+        const localOnly = local.filter((c) => !backendIds.has(c._id) && !backendIds.has(c.nama + c.pesan));
+        const merged = filterOutDeleted([...localOnly, ...data.data]);
+        setCommentsList(merged);
+        saveLocalComments(merged);
       } else {
-        setCommentsList(getLocalComments());
+        setCommentsList(filterOutDeleted(local));
       }
     } catch {
-      setCommentsList(getLocalComments());
+      setCommentsList(filterOutDeleted(getLocalComments()));
     } finally {
       setLoadingCommentsAdmin(false);
     }
@@ -83,8 +89,8 @@ const AdminDashboard = ({ token }) => {
 
   const handleDeleteCommentAdmin = async (id) => {
     if (!window.confirm('Yakin ingin menghapus komentar publik ini?')) return;
-    removeLocalComment(id);
-    setCommentsList((prev) => prev.filter((c) => c._id !== id));
+    const updated = removeLocalComment(id);
+    setCommentsList(updated);
     try {
       await axios.delete(`${API_BASE_URL}/api/comments/${id}`, authHeader);
     } catch (err) {

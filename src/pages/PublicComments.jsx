@@ -20,6 +20,7 @@ import {
   saveLocalComments,
   addLocalComment,
   removeLocalComment,
+  filterOutDeleted,
 } from '../utils/commentStorage';
 
 const ROLE_OPTIONS = [
@@ -99,19 +100,21 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
   const fetchComments = async () => {
     setLoadingComments(true);
     try {
+      const local = getLocalComments();
       const res = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
-      if (res.data.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      if (res.data && res.data.success && Array.isArray(res.data.data)) {
         // Gabungkan data backend dengan komentar lokal yang baru dibuat
-        const currentLocal = getLocalComments();
         const backendIds = new Set(res.data.data.map(c => c._id || (c.nama + c.pesan)));
-        const localOnly = currentLocal.filter(c => !backendIds.has(c._id) && !backendIds.has(c.nama + c.pesan));
-        const merged = [...localOnly, ...res.data.data];
+        const localOnly = local.filter(c => !backendIds.has(c._id) && !backendIds.has(c.nama + c.pesan));
+        const merged = filterOutDeleted([...localOnly, ...res.data.data]);
         setComments(merged);
         saveLocalComments(merged);
+      } else {
+        setComments(filterOutDeleted(local));
       }
     } catch (err) {
       console.warn('API backend komentar belum aktif atau tidak dapat dijangkau dari HP, menggunakan data lokal:', err);
-      setComments(getLocalComments());
+      setComments(filterOutDeleted(getLocalComments()));
     } finally {
       setLoadingComments(false);
     }
@@ -152,11 +155,18 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
 
     // Coba kirimkan ke backend jika server tersedia
     try {
-      await axios.post(`${API_BASE_URL}/api/comments`, {
+      const res = await axios.post(`${API_BASE_URL}/api/comments`, {
         nama: newComment.nama,
         role: newComment.role,
         pesan: newComment.pesan,
       }, { timeout: 4000 });
+      if (res.data?.success && res.data?.data?._id) {
+        const serverComment = res.data.data;
+        const current = getLocalComments();
+        const replaced = current.map(c => c._id === newComment._id ? serverComment : c);
+        saveLocalComments(replaced);
+        setComments(filterOutDeleted(replaced));
+      }
     } catch (err) {
       console.warn('Backend offline/belum terhubung, komentar disimpan di browser lokal:', err);
     } finally {
