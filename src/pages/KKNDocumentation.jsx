@@ -2,9 +2,21 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Calendar, Image as ImageIcon, ExternalLink, RefreshCw, HelpCircle } from 'lucide-react';
 import { API_BASE_URL } from '../api';
+import { INITIAL_DOCUMENTATION } from '../data/kknDocumentationData';
+
+export const formatPhotoUrl = (url) => {
+  if (!url) return '/homepage/k1.jpg';
+  // Jika URL mengarah ke localhost:5000/uploads atau link uploads lainnya, ubah menjadi relative path /uploads/
+  if (url.includes('/uploads/')) {
+    const filename = url.split('/uploads/').pop();
+    return `/uploads/${filename}`;
+  }
+  return url;
+};
 
 const KKNDocumentation = () => {
-  const [docs, setDocs] = useState([]);
+  // Inisialisasi awal dengan data dokumentasi lokal agar langsung muncul di HP tanpa delay/blank
+  const [docs, setDocs] = useState(INITIAL_DOCUMENTATION);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activePhoto, setActivePhoto] = useState(null);
@@ -14,9 +26,18 @@ const KKNDocumentation = () => {
     setError('');
     try {
       const response = await axios.get(`${API_BASE_URL}/api/documentation`);
-      if (response.data.success) setDocs(response.data.data);
+      if (response.data.success && Array.isArray(response.data.data) && response.data.data.length > 0) {
+        setDocs(response.data.data);
+      } else if (INITIAL_DOCUMENTATION.length > 0) {
+        setDocs(INITIAL_DOCUMENTATION);
+      }
     } catch (err) {
-      setError('Gagal memuat dokumentasi. Pastikan server aktif!');
+      console.warn('API backend tidak dapat diakses dari perangkat ini, menggunakan data lokal:', err);
+      if (INITIAL_DOCUMENTATION.length > 0) {
+        setDocs(INITIAL_DOCUMENTATION);
+      } else {
+        setError('Gagal memuat dokumentasi. Pastikan server aktif!');
+      }
     } finally {
       setLoading(false);
     }
@@ -102,9 +123,17 @@ const KKNDocumentation = () => {
                       </p>
                       <div
                         className="md:col-span-2 rounded-xl overflow-hidden border border-purple-100 h-40 bg-purple-50 cursor-zoom-in group/img relative"
-                        onClick={() => setActivePhoto(doc.foto)}
+                        onClick={() => setActivePhoto(formatPhotoUrl(doc.foto))}
                       >
-                        <img src={doc.foto} alt={doc.judul} className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500" />
+                        <img 
+                          src={formatPhotoUrl(doc.foto)} 
+                          alt={doc.judul} 
+                          className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500" 
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/homepage/k1.jpg';
+                          }}
+                        />
                         <div className="absolute inset-0 bg-purple-900/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                           <span className="text-white text-xs font-semibold flex items-center gap-1">
                             <ImageIcon className="w-4 h-4" /> Perbesar
@@ -133,8 +162,16 @@ const KKNDocumentation = () => {
               </svg>
             </button>
             <p className="text-xs font-bold text-purple-400 mb-3">Foto Dokumentasi KKN</p>
-            <img src={activePhoto} alt="Dokumentasi" className="max-w-full max-h-[65vh] object-contain rounded-xl border border-purple-100" />
-            <a href={activePhoto} target="_blank" rel="noopener noreferrer"
+            <img 
+              src={formatPhotoUrl(activePhoto)} 
+              alt="Dokumentasi" 
+              className="max-w-full max-h-[65vh] object-contain rounded-xl border border-purple-100" 
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = '/homepage/k1.jpg';
+              }}
+            />
+            <a href={formatPhotoUrl(activePhoto)} target="_blank" rel="noopener noreferrer"
               className="mt-3 text-xs text-purple-500 hover:text-purple-700 font-semibold flex items-center gap-1">
               Buka di tab baru <ExternalLink className="w-3 h-3" />
             </a>

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Users, UserCheck, UserMinus, CalendarDays, Search, Download, Trash2, RefreshCw, Eye, AlertCircle, Image as ImageIcon, Plus, CheckCircle2, MessageSquare } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { API_BASE_URL } from '../api';
+import { formatPhotoUrl } from './KKNDocumentation';
 
 const AdminDashboard = ({ token }) => {
   const [activeTab, setActiveTab] = useState('comments');
@@ -386,7 +387,15 @@ const AdminDashboard = ({ token }) => {
                   {docs.map(doc => (
                     <div key={doc._id} className="flex gap-4 p-3 rounded-xl bg-purple-50/50 border border-purple-100 hover:border-purple-300 transition-colors group relative text-xs">
                       <div className="w-16 h-16 rounded-lg overflow-hidden border border-purple-200 shrink-0 bg-purple-100">
-                        <img src={doc.foto} alt="" className="w-full h-full object-cover" />
+                        <img 
+                          src={formatPhotoUrl(doc.foto)} 
+                          alt="" 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/homepage/k1.jpg';
+                          }}
+                        />
                       </div>
                       <div className="flex-1 min-w-0 pr-8">
                         <span className="bg-purple-100 text-purple-600 font-black text-[10px] px-2 py-0.5 rounded-full mr-2">Hari {doc.hariKe}</span>
