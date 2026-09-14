@@ -96,32 +96,44 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Fetch comments
-  const fetchComments = async () => {
-    setLoadingComments(true);
+  // Fetch comments (Backend adalah Single Source of Truth)
+  const fetchComments = async (isBackground = false) => {
+    if (!isBackground) setLoadingComments(true);
     try {
-      const local = getLocalComments();
-      const res = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
+      const res = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 4000 });
       if (res.data && res.data.success && Array.isArray(res.data.data)) {
-        // Gabungkan data backend dengan komentar lokal yang baru dibuat
-        const backendIds = new Set(res.data.data.map(c => c._id || (c.nama + c.pesan)));
-        const localOnly = local.filter(c => !backendIds.has(c._id) && !backendIds.has(c.nama + c.pesan));
-        const merged = filterOutDeleted([...localOnly, ...res.data.data]);
-        setComments(merged);
-        saveLocalComments(merged);
-      } else {
-        setComments(filterOutDeleted(local));
+        // Timpa langsung dengan data bersih dari database backend
+        setComments(res.data.data);
+        saveLocalComments(res.data.data);
       }
     } catch (err) {
-      console.warn('API backend komentar belum aktif atau tidak dapat dijangkau dari HP, menggunakan data lokal:', err);
-      setComments(filterOutDeleted(getLocalComments()));
+      if (!isBackground) {
+        console.warn('API backend komentar belum aktif atau tidak dapat dijangkau dari HP, menggunakan cache lokal:', err);
+        setComments(getLocalComments());
+      }
     } finally {
-      setLoadingComments(false);
+      if (!isBackground) setLoadingComments(false);
     }
   };
 
   useEffect(() => {
     fetchComments();
+
+    // Auto-polling setiap 6 detik agar HP lain otomatis tersinkron (tambah / hapus komentar)
+    const interval = setInterval(() => {
+      fetchComments(true);
+    }, 6000);
+
+    // Refresh otomatis saat tab browser dibuka kembali
+    const handleFocus = () => {
+      fetchComments(true);
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // Handle submit comment
@@ -137,38 +149,42 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
 
     setSubmitting(true);
 
-    // Buat objek komentar baru secara instan
-    const newComment = {
-      _id: 'cmt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-      nama: nama.trim(),
-      role: role.trim() || 'Pengunjung / Umum',
-      pesan: pesan.trim(),
-      createdAt: new Date().toISOString(),
-    };
-
-    // LANGSUNG simpan dan tampilkan ke layar (Optimistic UI)
-    const updated = addLocalComment(newComment);
-    setComments(updated);
-    setSuccessMsg('Terima kasih! Komentar Anda berhasil dikirim dan langsung ditampilkan.');
-    setNama('');
-    setPesan('');
-
-    // Coba kirimkan ke backend jika server tersedia
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/comments`, {
-        nama: newComment.nama,
-        role: newComment.role,
-        pesan: newComment.pesan,
-      }, { timeout: 4000 });
-      if (res.data?.success && res.data?.data?._id) {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/comments`,
+        {
+          nama: nama.trim(),
+          role: role.trim() || 'Pengunjung / Umum',
+          pesan: pesan.trim(),
+        },
+        { timeout: 6000 }
+      );
+
+      if (res.data?.success && res.data?.data) {
         const serverComment = res.data.data;
-        const current = getLocalComments();
-        const replaced = current.map(c => c._id === newComment._id ? serverComment : c);
-        saveLocalComments(replaced);
-        setComments(filterOutDeleted(replaced));
+        setComments((prev) => [serverComment, ...prev.filter((c) => c._id !== serverComment._id)]);
+        addLocalComment(serverComment);
+        setSuccessMsg('Terima kasih! Komentar Anda berhasil dikirim dan tersimpan di database.');
+        setNama('');
+        setPesan('');
+      } else {
+        setErrorMsg(res.data?.message || 'Gagal mengirim komentar ke server.');
       }
     } catch (err) {
-      console.warn('Backend offline/belum terhubung, komentar disimpan di browser lokal:', err);
+      console.warn('Gagal terhubung ke backend server:', err);
+      // Simpan lokal sebagai cadangan jika server offline
+      const fallbackComment = {
+        _id: 'cmt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        nama: nama.trim(),
+        role: role.trim() || 'Pengunjung / Umum',
+        pesan: pesan.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      const updated = addLocalComment(fallbackComment);
+      setComments(updated);
+      setSuccessMsg('Komentar disimpan di perangkat ini (server offline/belum terhubung).');
+      setNama('');
+      setPesan('');
     } finally {
       setSubmitting(false);
     }
@@ -177,12 +193,15 @@ const PublicComments = ({ isAdmin = false, token = '' }) => {
   // Handle delete comment (Admin only)
   const handleDeleteComment = async (id) => {
     if (!window.confirm('Yakin ingin menghapus komentar ini?')) return;
-    const updated = removeLocalComment(id);
-    setComments(updated);
+    setComments((prev) => prev.filter((c) => String(c._id) !== String(id)));
+    removeLocalComment(id);
     try {
       await axios.delete(`${API_BASE_URL}/api/comments/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
+        timeout: 4000,
       });
+      // Sinkronkan ulang dari server setelah hapus
+      fetchComments(true);
     } catch (err) {
       console.warn('Gagal menghapus komentar di backend:', err);
     }

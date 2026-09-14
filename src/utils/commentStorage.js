@@ -1,12 +1,10 @@
 // Helper untuk sinkronisasi komentar publik
-// Menjamin komentar LANGSUNG tersimpan dan muncul di HP/Browser sekalipun backend belum di-deploy atau sedang offline
-
 export const DEFAULT_INITIAL_COMMENTS = [];
 
 const STORAGE_KEY = 'kkn_public_comments_cache_v2';
 const DELETED_KEY = 'kkn_deleted_comment_ids_v1';
 
-// Daftar ID komentar yang pernah dihapus agar tidak pernah muncul lagi
+// Daftar ID komentar yang pernah dihapus agar tidak muncul kembali di browser ini
 export const getDeletedCommentIds = () => {
   try {
     const raw = localStorage.getItem(DELETED_KEY);
@@ -36,7 +34,6 @@ export const filterOutDeleted = (comments = []) => {
   return comments.filter((c) => {
     if (!c) return false;
     const idStr = String(c._id || '');
-    if (idStr.startsWith('init_')) return false;
     if (deletedSet.has(idStr)) return false;
     return true;
   });
@@ -44,10 +41,6 @@ export const filterOutDeleted = (comments = []) => {
 
 export const getLocalComments = () => {
   try {
-    // Bersihkan cache versi lama jika ada
-    if (localStorage.getItem('kkn_public_comments_cache_v1')) {
-      localStorage.removeItem('kkn_public_comments_cache_v1');
-    }
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
@@ -72,7 +65,6 @@ export const saveLocalComments = (comments) => {
 
 export const addLocalComment = (comment) => {
   const current = getLocalComments();
-  // Cegah duplikasi
   const filtered = current.filter((c) => String(c._id) !== String(comment._id));
   const updated = [comment, ...filtered];
   saveLocalComments(updated);
@@ -86,3 +78,4 @@ export const removeLocalComment = (id) => {
   saveLocalComments(updated);
   return updated;
 };
+

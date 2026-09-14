@@ -68,20 +68,15 @@ const AdminDashboard = ({ token }) => {
   const fetchCommentsAdmin = async () => {
     setLoadingCommentsAdmin(true);
     try {
-      const local = getLocalComments();
-      const { data } = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 3500 });
+      const { data } = await axios.get(`${API_BASE_URL}/api/comments`, { timeout: 4000 });
       if (data && data.success && Array.isArray(data.data)) {
-        // Gabungkan data backend dengan komentar lokal yang baru dibuat
-        const backendIds = new Set(data.data.map((c) => c._id || (c.nama + c.pesan)));
-        const localOnly = local.filter((c) => !backendIds.has(c._id) && !backendIds.has(c.nama + c.pesan));
-        const merged = filterOutDeleted([...localOnly, ...data.data]);
-        setCommentsList(merged);
-        saveLocalComments(merged);
+        setCommentsList(data.data);
+        saveLocalComments(data.data);
       } else {
-        setCommentsList(filterOutDeleted(local));
+        setCommentsList(getLocalComments());
       }
     } catch {
-      setCommentsList(filterOutDeleted(getLocalComments()));
+      setCommentsList(getLocalComments());
     } finally {
       setLoadingCommentsAdmin(false);
     }
@@ -89,10 +84,11 @@ const AdminDashboard = ({ token }) => {
 
   const handleDeleteCommentAdmin = async (id) => {
     if (!window.confirm('Yakin ingin menghapus komentar publik ini?')) return;
-    const updated = removeLocalComment(id);
-    setCommentsList(updated);
+    setCommentsList((prev) => prev.filter((c) => String(c._id) !== String(id)));
+    removeLocalComment(id);
     try {
       await axios.delete(`${API_BASE_URL}/api/comments/${id}`, authHeader);
+      fetchCommentsAdmin();
     } catch (err) {
       console.warn('Gagal menghapus komentar di backend:', err);
     }
